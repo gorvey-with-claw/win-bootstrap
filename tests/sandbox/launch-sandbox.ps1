@@ -37,20 +37,55 @@ function Show-ModeMenu {
 
 function Test-SandboxFeature {
     Write-Step "[1/4] Checking Windows Sandbox feature..."
+    
+    # 检测 PowerShell 版本
+    $isPowerShell7 = $PSVersionTable.PSVersion.Major -ge 7
+    
     try {
-        $feature = Get-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClient"
-        if ($feature.State -ne "Enabled") {
-            Write-Error "Windows Sandbox is not enabled."
-            Write-Host "Enable it first from Windows Features or run:" -ForegroundColor Yellow
-            Write-Host "  Enable-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' -All" -ForegroundColor White
-            exit 1
+        $feature = $null
+        
+        if ($isPowerShell7) {
+            # PowerShell 7: 使用 Windows PowerShell 5.1 兼容模式或 dism
+            Write-Host "      Detected PowerShell 7, using compatibility mode..." -ForegroundColor Gray
+            
+            # 尝试使用 Windows PowerShell 5.1 执行
+            $feature = & powershell.exe -Command "Get-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' | Select-Object State" 2>$null
+            
+            if ($feature -match "Enabled") {
+                Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
+                return
+            } elseif ($feature -match "Disabled") {
+                Write-Error "Windows Sandbox is not enabled."
+                Write-Host "Enable it first from Windows Features or run in admin PowerShell 5.1:" -ForegroundColor Yellow
+                Write-Host "  Enable-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' -All" -ForegroundColor White
+                exit 1
+            }
+        } else {
+            # Windows PowerShell 5.1: 直接使用 cmdlet
+            $feature = Get-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClient"
+            if ($feature.State -eq "Enabled") {
+                Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
+                return
+            } else {
+                Write-Error "Windows Sandbox is not enabled."
+                Write-Host "Enable it first from Windows Features or run:" -ForegroundColor Yellow
+                Write-Host "  Enable-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' -All" -ForegroundColor White
+                exit 1
+            }
         }
-        Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
     }
     catch {
         Write-Host "      FAIL: Unable to query Windows Sandbox feature state." -ForegroundColor Red
-        Write-Host "      This usually means the current PowerShell session does not have enough privileges." -ForegroundColor Yellow
-        Write-Host "      Please rerun from an elevated PowerShell window and try again." -ForegroundColor Yellow
+        Write-Host "" -ForegroundColor Yellow
+        Write-Host "      Common causes:" -ForegroundColor Yellow
+        Write-Host "        1. Running in PowerShell 7 without Windows PowerShell 5.1 available" -ForegroundColor White
+        Write-Host "        2. Insufficient privileges (need Administrator)" -ForegroundColor White
+        Write-Host "        3. Windows Sandbox feature not installed" -ForegroundColor White
+        Write-Host "" -ForegroundColor Yellow
+        Write-Host "      Solutions:" -ForegroundColor Yellow
+        Write-Host "        - Try running from Windows PowerShell 5.1 (not PowerShell 7)" -ForegroundColor White
+        Write-Host "        - Run as Administrator" -ForegroundColor White
+        Write-Host "        - Enable Windows Sandbox feature first" -ForegroundColor White
         exit 1
     }
 }
