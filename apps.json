@@ -1,0 +1,30 @@
+[
+  {
+    "id": "git",
+    "name": "Git",
+    "installer": "scoop",
+    "package": "git",
+    "enabled": true
+  },
+  {
+    "id": "7zip",
+    "name": "7-Zip",
+    "installer": "scoop",
+    "package": "7zip",
+    "enabled": true
+  },
+  {
+    "id": "my-portable-tool",
+    "name": "My Portable Tool",
+    "installer": "scoop",
+    "package": "mybucket/my-portable-tool",
+    "enabled": true
+  },
+  {
+    "id": "powershell",
+    "name": "PowerShell",
+    "installer": "winget",
+    "package": "Microsoft.PowerShell",
+    "enabled": true
+  }
+]
