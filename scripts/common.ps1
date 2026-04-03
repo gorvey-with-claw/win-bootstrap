@@ -311,7 +311,7 @@ function Install-WingetApp {
 
         if ($LASTEXITCODE -eq 0) {
             Write-Log "$AppName installed successfully" -Level "Success"
-            return $false
+            return $true
         }
         else {
             Write-Log "Failed to install $AppName" -Level "Error"
