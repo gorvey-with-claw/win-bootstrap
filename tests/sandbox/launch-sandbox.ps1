@@ -105,10 +105,9 @@ function New-MappedWSB {
     Write-Step "[3/4] Generating Mapped Mode .wsb file..."
     
     $sandboxRepoPath = "C:\Users\WDAGUtilityAccount\Desktop\win-bootstrap"
-    $logonCommand = "powershell.exe -NoExit -ExecutionPolicy Bypass -Command `"Set-Location '$sandboxRepoPath'; Write-Host 'Mapped Mode: Testing local code...' -ForegroundColor Green; Write-Host 'Running: .\bootstrap.ps1' -ForegroundColor Gray; & '.\bootstrap.ps1'`""
-
-    $escapedRepoRoot = [System.Security.SecurityElement]::Escape($RepoRoot)
-    $escapedLogonCommand = [System.Security.SecurityElement]::Escape($logonCommand)
+    
+    # 构建命令 - 不使用 XML 转义，直接使用原始字符串
+    $commandText = "powershell.exe -NoExit -ExecutionPolicy Bypass -Command `"Set-Location '$sandboxRepoPath'; Write-Host 'Mapped Mode: Testing local code...' -ForegroundColor Green; Write-Host 'Running: .\bootstrap.ps1' -ForegroundColor Gray; .\bootstrap.ps1`""
 
     $wsbContent = @"
 <Configuration>
@@ -116,13 +115,13 @@ function New-MappedWSB {
   <Networking>Enable</Networking>
   <MappedFolders>
     <MappedFolder>
-      <HostFolder>$escapedRepoRoot</HostFolder>
+      <HostFolder>$RepoRoot</HostFolder>
       <SandboxFolder>$sandboxRepoPath</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>$escapedLogonCommand</Command>
+    <Command><![CDATA[$commandText]]></Command>
   </LogonCommand>
 </Configuration>
 "@
@@ -139,12 +138,8 @@ function New-CleanCloneWSB {
     
     $sandboxRepoPath = "C:\Users\WDAGUtilityAccount\Desktop\win-bootstrap"
     
-    $cloneCommand = "git clone https://github.com/gorvey-with-claw/win-bootstrap.git '$sandboxRepoPath'"
-    $runCommand = "Set-Location '$sandboxRepoPath'; Write-Host 'Running bootstrap.ps1...' -ForegroundColor Green; .\bootstrap.ps1"
-    
-    $fullCommand = "powershell.exe -NoExit -ExecutionPolicy Bypass -Command `"Write-Host 'Clean Clone Mode: Cloning from GitHub...' -ForegroundColor Green; $cloneCommand; if (Test-Path '$sandboxRepoPath\bootstrap.ps1') { $runCommand } else { Write-Error 'Clone failed' }`""
-
-    $escapedCommand = [System.Security.SecurityElement]::Escape($fullCommand)
+    # 构建命令 - 使用 CDATA 避免 XML 转义问题
+    $commandText = "powershell.exe -NoExit -ExecutionPolicy Bypass -Command `"Write-Host 'Clean Clone Mode: Cloning from GitHub...' -ForegroundColor Green; git clone https://github.com/gorvey-with-claw/win-bootstrap.git '$sandboxRepoPath'; if (Test-Path '$sandboxRepoPath\bootstrap.ps1') { Set-Location '$sandboxRepoPath'; Write-Host 'Running bootstrap.ps1...' -ForegroundColor Green; .\bootstrap.ps1 } else { Write-Error 'Clone failed or bootstrap.ps1 not found' }`""
 
     $wsbContent = @"
 <Configuration>
@@ -153,7 +148,7 @@ function New-CleanCloneWSB {
   <MappedFolders>
   </MappedFolders>
   <LogonCommand>
-    <Command>$escapedCommand</Command>
+    <Command><![CDATA[$commandText]]></Command>
   </LogonCommand>
 </Configuration>
 "@
