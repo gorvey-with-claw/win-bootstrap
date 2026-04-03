@@ -39,55 +39,40 @@ function Test-SandboxFeature {
     Write-Step "[1/4] Checking Windows Sandbox feature..."
     
     # 检测 PowerShell 版本
-    $isPowerShell7 = $PSVersionTable.PSVersion.Major -ge 7
+    $psVersion = $PSVersionTable.PSVersion
+    Write-Host "      PowerShell Version: $psVersion" -ForegroundColor Gray
     
-    try {
-        $feature = $null
-        
-        if ($isPowerShell7) {
-            # PowerShell 7: 使用 Windows PowerShell 5.1 兼容模式或 dism
-            Write-Host "      Detected PowerShell 7, using compatibility mode..." -ForegroundColor Gray
-            
-            # 尝试使用 Windows PowerShell 5.1 执行
-            $feature = & powershell.exe -Command "Get-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' | Select-Object State" 2>$null
-            
-            if ($feature -match "Enabled") {
-                Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
-                return
-            } elseif ($feature -match "Disabled") {
-                Write-Error "Windows Sandbox is not enabled."
-                Write-Host "Enable it first from Windows Features or run in admin PowerShell 5.1:" -ForegroundColor Yellow
-                Write-Host "  Enable-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' -All" -ForegroundColor White
-                exit 1
-            }
-        } else {
-            # Windows PowerShell 5.1: 直接使用 cmdlet
-            $feature = Get-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClient"
-            if ($feature.State -eq "Enabled") {
-                Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
-                return
-            } else {
-                Write-Error "Windows Sandbox is not enabled."
-                Write-Host "Enable it first from Windows Features or run:" -ForegroundColor Yellow
-                Write-Host "  Enable-WindowsOptionalFeature -Online -FeatureName 'Containers-DisposableClient' -All" -ForegroundColor White
-                exit 1
-            }
-        }
+    # 方法1: 使用 dism.exe（适用于所有 PowerShell 版本）
+    Write-Host "      Checking with dism.exe..." -ForegroundColor Gray
+    
+    $dismOutput = & dism.exe /Online /Get-FeatureInfo /FeatureName:Containers-DisposableClient 2>&1
+    
+    if ($dismOutput -match "State : Enabled") {
+        Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
+        return
     }
-    catch {
-        Write-Host "      FAIL: Unable to query Windows Sandbox feature state." -ForegroundColor Red
+    
+    if ($dismOutput -match "State : Disabled") {
+        Write-Host "      Windows Sandbox is disabled" -ForegroundColor Yellow
         Write-Host "" -ForegroundColor Yellow
-        Write-Host "      Common causes:" -ForegroundColor Yellow
-        Write-Host "        1. Running in PowerShell 7 without Windows PowerShell 5.1 available" -ForegroundColor White
-        Write-Host "        2. Insufficient privileges (need Administrator)" -ForegroundColor White
-        Write-Host "        3. Windows Sandbox feature not installed" -ForegroundColor White
-        Write-Host "" -ForegroundColor Yellow
-        Write-Host "      Solutions:" -ForegroundColor Yellow
-        Write-Host "        - Try running from Windows PowerShell 5.1 (not PowerShell 7)" -ForegroundColor White
-        Write-Host "        - Run as Administrator" -ForegroundColor White
-        Write-Host "        - Enable Windows Sandbox feature first" -ForegroundColor White
+        Write-Host "      To enable, run as Administrator:" -ForegroundColor Yellow
+        Write-Host "        dism.exe /Online /Enable-Feature /FeatureName:Containers-DisposableClient /All" -ForegroundColor White
         exit 1
     }
+    
+    # dism 没有返回有效状态
+    Write-Host "      Unable to determine Windows Sandbox status" -ForegroundColor Red
+    Write-Host "" -ForegroundColor Yellow
+    Write-Host "      Common reasons:" -ForegroundColor Yellow
+    Write-Host "        - Windows Sandbox feature not installed" -ForegroundColor White
+    Write-Host "        - Not running as Administrator" -ForegroundColor White
+    Write-Host "        - Windows version doesn't support Sandbox (requires Pro/Enterprise)" -ForegroundColor White
+    Write-Host "" -ForegroundColor Yellow
+    Write-Host "      To enable Windows Sandbox:" -ForegroundColor Yellow
+    Write-Host "        1. Run: optionalfeatures.exe" -ForegroundColor White
+    Write-Host "        2. Check 'Windows Sandbox'" -ForegroundColor White
+    Write-Host "        3. Restart computer" -ForegroundColor White
+    exit 1
 }
 
 function Get-RepositoryPath {
@@ -154,12 +139,12 @@ function New-CleanCloneWSB {
     
     $sandboxRepoPath = "C:\Users\WDAGUtilityAccount\Desktop\win-bootstrap"
     
-    # Command to clone from GitHub and run bootstrap
-    $cloneAndRunCommand = @"
-powershell.exe -NoExit -ExecutionPolicy Bypass -Command "Write-Host 'Clean Clone Mode: Cloning from GitHub...' -ForegroundColor Green; git clone https://github.com/gorvey-with-claw/win-bootstrap.git '$sandboxRepoPath'; if (Test-Path '$sandboxRepoPath\bootstrap.ps1') { Set-Location '$sandboxRepoPath'; Write-Host 'Running bootstrap.ps1...' -ForegroundColor Green; .\bootstrap.ps1 } else { Write-Error 'Clone failed or bootstrap.ps1 not found' }"
-"@
+    $cloneCommand = "git clone https://github.com/gorvey-with-claw/win-bootstrap.git '$sandboxRepoPath'"
+    $runCommand = "Set-Location '$sandboxRepoPath'; Write-Host 'Running bootstrap.ps1...' -ForegroundColor Green; .\bootstrap.ps1"
+    
+    $fullCommand = "powershell.exe -NoExit -ExecutionPolicy Bypass -Command `"Write-Host 'Clean Clone Mode: Cloning from GitHub...' -ForegroundColor Green; $cloneCommand; if (Test-Path '$sandboxRepoPath\bootstrap.ps1') { $runCommand } else { Write-Error 'Clone failed' }`""
 
-    $escapedLogonCommand = [System.Security.SecurityElement]::Escape($cloneAndRunCommand.Trim())
+    $escapedCommand = [System.Security.SecurityElement]::Escape($fullCommand)
 
     $wsbContent = @"
 <Configuration>
@@ -168,7 +153,7 @@ powershell.exe -NoExit -ExecutionPolicy Bypass -Command "Write-Host 'Clean Clone
   <MappedFolders>
   </MappedFolders>
   <LogonCommand>
-    <Command>$escapedLogonCommand</Command>
+    <Command>$escapedCommand</Command>
   </LogonCommand>
 </Configuration>
 "@
