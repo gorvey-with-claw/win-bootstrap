@@ -47,6 +47,10 @@ function Test-SandboxFeature {
     
     $dismOutput = & dism.exe /Online /Get-FeatureInfo /FeatureName:Containers-DisposableClient 2>&1
     
+    # 调试输出（显示前3行）
+    Write-Host "      dism output (first 3 lines):" -ForegroundColor Gray
+    $dismOutput | Select-Object -First 3 | ForEach-Object { Write-Host "        $_" -ForegroundColor Gray }
+    
     if ($dismOutput -match "State : Enabled") {
         Write-Host "      OK: Windows Sandbox enabled" -ForegroundColor Green
         return
@@ -58,6 +62,13 @@ function Test-SandboxFeature {
         Write-Host "      To enable, run as Administrator:" -ForegroundColor Yellow
         Write-Host "        dism.exe /Online /Enable-Feature /FeatureName:Containers-DisposableClient /All" -ForegroundColor White
         exit 1
+    }
+    
+    # 检查是否有错误信息
+    if ($dismOutput -match "Error|error|Fail|fail") {
+        Write-Host "      dism.exe returned error" -ForegroundColor Yellow
+        Write-Host "      Full output:" -ForegroundColor Gray
+        $dismOutput | ForEach-Object { Write-Host "        $_" -ForegroundColor Gray }
     }
     
     # dism 没有返回有效状态
