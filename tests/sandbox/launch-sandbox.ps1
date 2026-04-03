@@ -1,10 +1,10 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [Parameter(Mandatory = $false)]
     [ValidateSet("Mapped", "CleanClone")]
     [string]$Mode
 )
+
+$ErrorActionPreference = "Stop"
 
 function Write-Step {
     param([string]$Message)
