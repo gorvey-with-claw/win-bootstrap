@@ -55,6 +55,16 @@
 
 自定义 bucket 的软件在 `apps.json` 中使用 `mybucket/package-name` 格式引用。
 
+### 示例：Starship
+
+本仓库包含 [Starship](https://starship.rs)（跨 shell 提示符工具）作为自定义 bucket 的示例：
+
+- **Manifest 文件**：`bucket/starship.json`
+- **引用方式**：`mybucket/starship`
+- **用途**：展示如何通过自定义 bucket 安装便携软件
+
+Starship 是一个真实的开源项目，提供 Windows x64 便携版，适合作为自定义 bucket 机制的演示示例。
+
 ## 已知限制
 
 1. **无软件分类**：初版不包含 3-9 分类功能，所有软件统一在 `apps.json` 中管理

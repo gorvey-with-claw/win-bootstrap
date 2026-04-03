@@ -21,6 +21,13 @@
     "enabled": true
   },
   {
+    "id": "starship",
+    "name": "Starship Prompt",
+    "installer": "scoop",
+    "package": "mybucket/starship",
+    "enabled": true
+  },
+  {
     "id": "powershell",
     "name": "PowerShell",
     "installer": "winget",
